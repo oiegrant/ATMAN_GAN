@@ -1,0 +1,95 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import requests
+import io
+import PIL
+from PIL import Image
+
+from bs4 import BeautifulSoup
+import urllib.request as reqqer
+
+
+PATH = "/home/oiexx032/Desktop/ATMAN_GAN/chromedriver"
+
+headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '3600',
+    'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0'
+    }
+
+wd = webdriver.Chrome(PATH)
+
+#waits for initialization
+
+image_url = "https://media.istockphoto.com/photos/alberta-wilderness-near-banff-picture-id583809524?b=1&k=20&m=583809524&s=170667a&w=0&h=mYDDTesIuWZc0w0iQu0QrHPm7COlBt3QFsHU2vgxfIU="
+
+def get_images_from_chrome(web_driver, keyword, delay=2, max_images=0):
+    # needs to click on thumbnails, download image source
+    # needs to be able to scroll down to the google page to load more images
+    #finding class names (which skips top bar of suggested image categories)
+    def scroll_down(wd):
+        #below executes a javascript line that scrolls to the bottom of the page 
+        wd.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        #waiting for images to load before scrolling again
+        time.sleep(delay)
+
+    def get_image_class(link, headers):
+
+
+        req = requests.get(link, headers)
+        soup = BeautifulSoup(req.content, 'html.parser')
+        # soup.mJxzWe
+        # soup.img
+        print("------------------------------------------------------")
+        print(soup.html.body.div.img)
+       
+    
+ 
+        #print(results)
+
+        #urllib2.urlopen(link).read()
+
+
+
+
+    topic_search = keyword
+    topic_search = topic_search.replace(' ', '+')
+
+    #goes to image page of keyword search
+    image_page = (f"https://www.google.com/search?site=&tbm=isch&source=hp&biw=1873&bih=990&q={keyword}")
+    wd.get(image_page)
+
+    get_image_class(image_page, headers)
+
+    image_urls = set()
+    skips = 0
+
+    # while len(image_urls) + skips < max_images:
+    #     scroll_to_end(wd)
+
+    #     thumbnails = wd.find_elements(By.CLASS_NAME, )
+
+
+get_images_from_chrome(wd,"mountains")
+
+#closes browser
+wd.quit()
+
+
+def download_image(download_path, url, file_name):
+    try:
+        image_content = requests.get(url).content
+        #saves as binary
+        image_file = io.BytesIO(image_content)
+        #saves as image
+        image = Image.open(image_file)
+        #saving o location...
+        file_path = download_path + file_name
+
+        with open(file_path, "wb") as f:
+            image.save(f, "JPEG")
+    except Exception as e:
+        print('FAILED---', e)
+
