@@ -1,2 +1,3 @@
 # ATMAN_GAN
-Full process for creating music pattered video construction based on deep learning
+Set of Programs for creating GAN-based image creation that is synced to .mp3 files to create a music video  
+
