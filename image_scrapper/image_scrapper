@@ -4,88 +4,103 @@ import requests
 import io
 import PIL
 from PIL import Image
+import time
 
 from bs4 import BeautifulSoup
 import urllib.request as reqqer
 
 
-PATH = "/home/oiexx032/Desktop/ATMAN_GAN/chromedriver"
 
-headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age': '3600',
-    'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0'
-    }
+##############################PARAMETER INITIALIZATION#################################
+
+kw_list = ['mountains', 'landscape photograpy', 'deserts','iceland landscapes']
+#keyword/phrase list for google searches
+
+count_list = [3,3,3,3]
+#number of images to pull for each keyword/phrase
+
+
+if len(kw_list) != len(count_list):
+    print("ERROR: Image count does not equal keyword/phrase count")
+    exit()
+#exits program if length of count_list and kw_list aren't equal
+#once GUI added, will have a default count_list value, say 10 for unassigned categories
+
+#PATH = "/home/oiexx032/Desktop/ATMAN_GAN/chromedriver" #network path
+PATH = (r"\Users\grant\OneDrive\Desktop\git_projects\python_envs\ATMAN_env\chromedriver") #home path
+#Update PATH to point to local installation of chromedriver
+
+
+for i in range(len(kw_list)):
+    kw_list[i] = kw_list[i].replace(' ', '+')
+#reformats kw_list to google-digestible format
 
 wd = webdriver.Chrome(PATH)
 
-#waits for initialization
-
-image_url = "https://media.istockphoto.com/photos/alberta-wilderness-near-banff-picture-id583809524?b=1&k=20&m=583809524&s=170667a&w=0&h=mYDDTesIuWZc0w0iQu0QrHPm7COlBt3QFsHU2vgxfIU="
+##############################CHROME IMAGE SCRAPING FUNCTION############################
 
 def get_images_from_chrome(web_driver, keyword, delay=2, max_images=0):
-    # needs to click on thumbnails, download image source
-    # needs to be able to scroll down to the google page to load more images
-    #finding class names (which skips top bar of suggested image categories)
+    #ADD DOCUMENTATION
+
     def scroll_down(wd):
-        #below executes a javascript line that scrolls to the bottom of the page 
+        #Function for scrolling down web page
         wd.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        #waiting for images to load before scrolling again
+        #executes a javascript line that scrolls to the bottom of the page
         time.sleep(delay)
-
-    def get_image_class(link, headers):
-
-
-        req = requests.get(link, headers)
-        soup = BeautifulSoup(req.content, 'html.parser')
-        # soup.mJxzWe
-        # soup.img
-        print("------------------------------------------------------")
-        print(soup.html.body.div.img)
-       
-    
- 
-        #print(results)
-
-        #urllib2.urlopen(link).read()
+        #waiting for images to load before scrolling again
 
 
-
-
-    topic_search = keyword
-    topic_search = topic_search.replace(' ', '+')
-
-    #goes to image page of keyword search
     image_page = (f"https://www.google.com/search?site=&tbm=isch&source=hp&biw=1873&bih=990&q={keyword}")
     wd.get(image_page)
+    #goes to google images page of keyword search
 
-    get_image_class(image_page, headers)
+
+    thumb_class = 'Q4LuWd'
+    #this is the current image class for the thumbnails (since 9/2021)
+    #potential improvement: automate this pull with BeautifulSoup in case google changes these class IDs
+    image_class = 'n3VNCb'
+    #this is the current image class for the images once clicked onn (since 9/2021) 
+    #potential improvement: automate this pull with BeautifulSoup in case google changes these class IDs
 
     image_urls = set()
     skips = 0
 
-    # while len(image_urls) + skips < max_images:
-    #     scroll_to_end(wd)
+    while len(image_urls) + skips < max_images:
+        #ADD DOCUMENTATION
+        scroll_down(wd)
+        thumbnails = wd.find_elements(By.CLASS_NAME, thumb_class)
 
-    #     thumbnails = wd.find_elements(By.CLASS_NAME, )
+        for img in thumbnails[len(image_urls) + skips:max_images]:
+            try:
+                img.click()
+                time.sleep(delay)
+            except:
+                continue
+        
+            images = wd.find_elements(By.CLASS_NAME, image_class)
+            for image in images:
+                if image.get_attribute('src') in image_urls:
+                    max_images += 1
+                    skips += 1
+                    break
+                if image.get_attribute('src') and 'http' in image.get_attribute('src'):
+                    image_urls.add(image.get_attribute('src'))
+                    
+    return image_urls
 
+########################################################################################
 
-get_images_from_chrome(wd,"mountains")
-
-#closes browser
-wd.quit()
-
+##############################DOWNLOAD IMAGES VIA LINK TO DEVICE########################
 
 def download_image(download_path, url, file_name):
+    #ADD DOCUMENTATION
     try:
         image_content = requests.get(url).content
         #saves as binary
         image_file = io.BytesIO(image_content)
         #saves as image
         image = Image.open(image_file)
-        #saving o location...
+        #saving to location...
         file_path = download_path + file_name
 
         with open(file_path, "wb") as f:
@@ -93,3 +108,16 @@ def download_image(download_path, url, file_name):
     except Exception as e:
         print('FAILED---', e)
 
+########################################################################################
+
+##############################PROGRAM RUN###############################################
+#NOTE: Must have images folder created in your local folder, I use imgs/ here
+
+for i, kw in enumerate(kw_list):
+    temp_url_list = get_images_from_chrome(wd,kw,max_images = count_list[i])
+    for i, url in enumerate(temp_url_list):
+        download_image("imgs/", url, f'{kw}_{str(i)}.jpg')
+
+wd.quit()
+
+########################################################################################
