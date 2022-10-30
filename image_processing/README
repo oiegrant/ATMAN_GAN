@@ -1,0 +1,2 @@
+The image_processing program will center and square the images pulled from web_scrapper
+Saving the new images to a new locaton for use in model training
