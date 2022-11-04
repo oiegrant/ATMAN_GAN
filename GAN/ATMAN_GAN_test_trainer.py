@@ -26,12 +26,13 @@ from matplotlib import pyplot as plt
 
 import os
 os.add_dll_directory("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.7/bin")
-print("CURRENT CWD: ")
-print(os.getcwdb())
 
-# define the standalone discriminator model
-# Input would be 128x128x3 images and the output would be a binary (using sigmoid)
-#Remember that the discriminator is just a binary classifier for true/fake images.
+
+
+########################### DESCRIMINATOR #################################################
+# Input should be 128x128x3 images and the output would be a binary (using sigmoid)
+# Binary classification (True/False)
+
 def define_discriminator(in_shape=(128,128,3)):
 	model = Sequential()
 	# normal
@@ -63,11 +64,12 @@ test_discr = define_discriminator()
 print(test_discr.summary())
 #plot_model(test_discr, to_file='ATMAN_model.png', show_shapes=True)
 
-# define the standalone generator model
-# Generator must generate 128x128x3 images that can be fed into the discriminator. 
-# So, we start with enough nodes in the dense layer that can be gradually upscaled
-#to 128x128x3. 
-#Remember that the input would be a latent vector (usually size 100)
+
+########################### GENERATOR #####################################################
+# Generator generates 128x128x3 images that can be fed into the discriminator.
+# Start with enough nodes in the dense layer that can be gradually upscaled to 128x128x3.
+#Input would be a latent vector (usually size 100)
+
 
 def define_generator(latent_dim):
 	model = Sequential()
