@@ -1,22 +1,11 @@
-"""
-Dataset from: https://susanqq.github.io/UTKFace/ 
-Latent space is hard to interpret unless conditioned using many classes.​
-But, the latent space can be exploited using generated images.​
-Here is how...
-x Generate 10s of images using random latent vectors.​
-x Identify many images within each category of interest (e.g., smiling man, neutral man, etc. )​
-x Average the latent vectors for each category to get a mean representation in the latent space (for that category).​
-x Use these mean latent vectors to generate images with features of interest. ​
-This part of the code is used to train a GAN on 128x128x3 images.(e.g. landscape image data)
-The generator model can then be used to generate new images. (new landscapes)
-The features in the new images can be 'engineered' by doing simple arithmetic
-between vectors that are used to generate images. 
 
-"""
-
-from numpy import zeros, ones
+import numpy as np
 from numpy.random import randn, randint
+from numpy import asarray
 
+import random
+
+import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Reshape, Flatten, Conv2D, Conv2DTranspose, LeakyReLU, Dropout
@@ -24,11 +13,53 @@ from tensorflow.keras.utils import plot_model
 
 from matplotlib import pyplot as plt
 
+from PIL import Image
+
+import cv2
+
+import imageio
+
+
 import os
 os.add_dll_directory("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.7/bin")
 
+#################################################################################
+n = 1000
+x_size, y_size = 128,128
+epochs = 3
+batch_size = 32
+AUTO = tf.data.AUTOTUNE
+output_path = 'C:/Users/grant/OneDrive/Desktop/git_projects/python_envs/ATMAN_GAN/GAN/GAN_outputs/'
+########################## DATA LOAD ############################################
+# Batched Data Loader required? 
+
+#Preparing data pathway
+input_dir = 'C:/Users/grant/OneDrive/Desktop/git_projects/python_envs/ATMAN_GAN/GAN/datasets/landscape/'
+
+input_img_paths = sorted(
+    [
+        os.path.join(input_dir,fname)
+        for fname in os.listdir(input_dir)
+        if fname.endswith('.jpg')
+    ]
+)
+
+#selecting n random images for training
+input_img_paths = random.sample(input_img_paths, n)
 
 
+
+########################## IMAGE PRE-PROCESSOR ############################################
+
+dataset = []
+save_path = 'C:/Users/grant/OneDrive/Desktop/git_projects/python_envs/ATMAN_GAN/GAN/datasets/landscape_clean/'
+for j, path in enumerate(input_img_paths):
+	img = cv2.imread(path)
+	RGB_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+	img_r = cv2.resize(RGB_img,dsize=(x_size,y_size),interpolation=cv2.INTER_CUBIC)
+	dataset.append(img_r)
+dataset = np.asarray(dataset)
+print(dataset.shape)
 ########################### DESCRIMINATOR #################################################
 # Input should be 128x128x3 images and the output would be a binary (using sigmoid)
 # Binary classification (True/False)
@@ -62,7 +93,7 @@ def define_discriminator(in_shape=(128,128,3)):
 #Verify the model summary
 test_discr = define_discriminator()
 print(test_discr.summary())
-#plot_model(test_discr, to_file='ATMAN_model.png', show_shapes=True)
+plot_model(test_discr,to_file=os.path.join(output_path,'discrim_model.png'), show_shapes=True)
 
 
 ########################### GENERATOR #####################################################
@@ -96,7 +127,7 @@ def define_generator(latent_dim):
 
 test_gen = define_generator(100)
 print(test_gen.summary())
-#plot_model(test_gen, to_file='generator_model.png', show_shapes=True)
+plot_model(test_gen,to_file=os.path.join(output_path,'generator_model.png'), show_shapes=True)
 
 # define the combined generator and discriminator model, for updating the generator
 def define_gan(g_model, d_model):
@@ -113,16 +144,17 @@ def define_gan(g_model, d_model):
 	model.compile(loss='binary_crossentropy', optimizer=opt)
 	return model
 
+
 test_gan = define_gan(test_gen, test_discr)
 print(test_gan.summary())
-#plot_model(test_gan, to_file='combined_model.png', show_shapes=True)
+plot_model(test_gan, to_file=os.path.join(output_path,'combined_model.png'), show_shapes=True)
 
 
 # Function to sample some random real images
 def generate_real_samples(dataset, n_samples):
 	ix = randint(0, dataset.shape[0], n_samples)
 	X = dataset[ix]
-	y = ones((n_samples, 1)) # Class labels for real images are 1
+	y = np.ones((n_samples, 1)) # Class labels for real images are 1
 	return X, y
 
 # Function to generate random latent points
@@ -135,7 +167,7 @@ def generate_latent_points(latent_dim, n_samples):
 def generate_fake_samples(g_model, latent_dim, n_samples):
 	x_input = generate_latent_points(latent_dim, n_samples) #Generate latent points as input to the generator
 	X = g_model.predict(x_input) #Use the generator to generate fake images
-	y = zeros((n_samples, 1)) # Class labels for fake images are 0
+	y = np.zeros((n_samples, 1)) # Class labels for fake images are 0
 	return X, y
 
 # Function to save Plots after every n number of epochs
@@ -147,8 +179,9 @@ def save_plot(examples, epoch, n=10):
 		plt.axis('off')
 		plt.imshow(examples[i])
 	# save plot to a file so we can view how generated images evolved over epochs
-	filename = 'saved_data_during_training/images/generated_plot_128x128_e%03d.png' % (epoch+1)
-	plt.savefig(filename)
+	fname = 'generated_plot_128x128_e%03d.png' % (epoch+1)
+	new_path = os.path.join(output_path,fname)
+	plt.savefig(fname)
 	plt.close()
 
 # Function to summarize performance periodically. 
@@ -167,12 +200,13 @@ def summarize_performance(epoch, g_model, d_model, dataset, latent_dim, n_sample
 	# save generated images periodically using the save_plot function
 	save_plot(x_fake, epoch)
 	# save the generator model
-	filename = 'saved_data_during_training/models/generator_model_128x128_%03d.h5' % (epoch+1)
-	g_model.save(filename)
+	fname = 'generator_model_128x128_%03d.h5' % (epoch+1)
+	new_path = os.path.join(output_path,fname)
+	g_model.save(new_path)
 
 # train the generator and discriminator by enumerating batches and epochs. 
 #
-def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batch=128):
+def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=epochs, n_batch=batch_size):
 	bat_per_epo = int(dataset.shape[0] / n_batch)
 	half_batch = int(n_batch / 2) #Disc. trained on half batch real and half batch fake images
 	#  enumerate epochs
@@ -190,7 +224,7 @@ def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batc
 			# Generate latent vectors as input for the generator
 			X_gan = generate_latent_points(latent_dim, n_batch)
 			# Label generated (fake) mages as 1 to fool the discriminator 
-			y_gan = ones((n_batch, 1))
+			y_gan = np.ones((n_batch, 1))
 			# Train the generator (via the discriminator's error)
 			g_loss = gan_model.train_on_batch(X_gan, y_gan)
 			# Report disc. and gen losses. 
@@ -202,35 +236,10 @@ def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batc
 
 ############################################
 
-#Now that we defined all necessary functions, let us load data and train the GAN.
-# Dataset from: https://susanqq.github.io/UTKFace/
-import os
-import numpy as np
-import cv2
-from PIL import Image
-import random
-
-n=1000 #Number of images to read from the directory. Currently have ~4k+ images (For training)
-SIZE = 128 #Resize images to this size
-all_img_list = os.listdir('datasets/landscape/')
-
-dataset_list = random.sample(all_img_list, n) #Get n random images from the directory
-
-#Read images, resize and capture into a numpy array
-dataset = []
-for img in dataset_list:
-    temp_img = cv2.imread("data/UTKFace/UTKFace/" + img)
-    temp_img = cv2.cvtColor(temp_img, cv2.COLOR_BGR2RGB) #opencv reads images as BGR so let us convert back to RGB
-    temp_img = Image.fromarray(temp_img)
-    temp_img = temp_img.resize((SIZE, SIZE)) #Resize
-    dataset.append(np.array(temp_img))   
-
-dataset = np.array(dataset) #Convert the list to numpy array
-
 #Rescale to [-1, 1] - remember that the generator uses tanh activation that goes from -1,1
-dataset = dataset.astype('float32')
+# dataset = dataset.astype('float32')
 	# scale from [0,255] to [-1,1]
-dataset = (dataset - 127.5) / 127.5
+# dataset = (dataset - 127.5) / 127.5
 
 # size of the latent space
 latent_dim = 100
@@ -242,4 +251,4 @@ g_model = define_generator(latent_dim)
 gan_model = define_gan(g_model, d_model)
 
 # train model
-train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100)
+train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=epochs)
