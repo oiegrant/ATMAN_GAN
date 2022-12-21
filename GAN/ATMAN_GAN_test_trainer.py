@@ -26,7 +26,7 @@ os.add_dll_directory("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.7/b
 #################################################################################
 n = 1000
 x_size, y_size = 128,128
-epochs = 3
+epochs = 10
 batch_size = 32
 AUTO = tf.data.AUTOTUNE
 output_path = 'C:/Users/grant/OneDrive/Desktop/git_projects/python_envs/ATMAN_GAN/GAN/GAN_outputs/'
@@ -238,7 +238,7 @@ def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=epochs, n_b
 
 #Rescale to [-1, 1] - remember that the generator uses tanh activation that goes from -1,1
 # dataset = dataset.astype('float32')
-	# scale from [0,255] to [-1,1]
+# scale from [0,255] to [-1,1]
 # dataset = (dataset - 127.5) / 127.5
 
 # size of the latent space
@@ -252,3 +252,20 @@ gan_model = define_gan(g_model, d_model)
 
 # train model
 train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=epochs)
+print('TRAIN COMPLETE')
+# size of the latent space
+latent_dim = 100
+# define the discriminator model
+# generate samples
+n_samples = 25
+X, _ = generate_fake_samples(g_model, latent_dim, n_samples)
+# plot the generated samples
+for i in range(n_samples):
+ # define subplot
+ plt.subplot(5, 5, 1 + i)
+ # turn off axis labels
+ plt.axis('off')
+ # plot single image
+ plt.imshow(X[i, :, :, 0])
+# show the figure
+plt.savefig('output_example.png')
